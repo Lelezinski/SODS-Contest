@@ -1,6 +1,10 @@
 proc dualVth {slackThreshold maxFanoutEndpointCost} {
+    # Initially swap all cells to HVT
     swap_to_hvt
+
     while {[check_constraints $slackThreshold maxFanoutEndpointCost] == 0} {
+        # While constraints are not met
+        # Swap a random HVT cell at time to LVT
         set hvt_cells [get_cells -filter "lib.cell.threshold_voltage_group == H"]
         set random_cell [index_collection $hvt_cells]
         set cell_name [lindex $sorted_cells 0 0]
@@ -30,17 +34,21 @@ proc swap_cell_to_lvt {cell} {
 # Check if constraints are met
 proc check_constraints {slackThreshold maxFanoutEndpointCost} {
     update_timing -full
-    set msc_slack {get_attribute [get_timing_paths]} #non sicuro
+    # TODO: Marco non è sicuro della linea dopo
+    set msc_slack {get_attribute [get_timing_paths]}
+
     if {$msc_slack <0}{
         puts "Slack: $msc_slack"
         return 0
     }
     foreach_in_collection cell {get_cells}{
-        set path [get_timing_paths -through $cell -nworst 1 -max_paths 10000] # NON SO SE COMPLETO
+        # TODO: Marco non sa se è completo. marco non sa molte cose
+        set path [get_timing_paths -through $cell -nworst 1 -max_paths 10000]
         set cell_fanout_endpoint_cost 0.0
         foreach_in_collection path $paths {
             set this cost [expr $slackThreshold - [ get attribute $path slack ]]
-            set cell_fanout_endpoint_cost [expr $cell_fanout_endpoint_cost + ...] # PROBLEMA
+            # FIXME: completare linea dopo
+            set cell_fanout_endpoint_cost [expr $cell_fanout_endpoint_cost + ...]
         }
         puts FCE: $cell_fanout_endpoint_cost
         if {$cell_fanout_endpoint_cost >= $maxFanoutEndpointCost}{
@@ -52,14 +60,16 @@ proc check_constraints {slackThreshold maxFanoutEndpointCost} {
     return 1
 }
 
-# Cell sorting algorithm
+# Cell sorting algorithm: ascending order by cell slack
 proc sort_cells_by_slack {hvt_cells} {
-    foreach_in_collection cell $hct_cells {
+    # Create the list to sort
+    foreach_in_collection cell $hvt_cells {
         set cell_path [get_timing_paths -through $cell]
         set cell_slack [get_attribute $cell_path slack]
         set cell_name [get_attribute $cell full_name]
         lappend sorted_cells "$cell_name $cell_slack"
     }
-    set $sorted_cells [lsort -real -index 1 $sorted_cells]
+    # Sort by ascending slack order
+    set $sorted_cells [lsort -real -increasing -index 1 $sorted_cells]
     return $sorted_cells
 }
