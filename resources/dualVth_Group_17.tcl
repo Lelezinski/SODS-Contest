@@ -5,7 +5,7 @@ proc dualVth {slackThreshold maxFanoutEndpointCost} {
     while {[check_constraints $slackThreshold maxFanoutEndpointCost] == 0} {
         # While constraints are not met
         # Swap a random HVT cell at time to LVT
-        set hvt_cells [get_cells -filter "lib.cell.threshold_voltage_group == H"]
+        set hvt_cells [get_cells -filter "lib.cell.threshold_voltage_group == HVT"]
         set random_cell [index_collection $hvt_cells]
         set cell_name [lindex $sorted_cells 0 0]
         swap_cell_to_lvt [get_cells $cell_name]
@@ -15,11 +15,11 @@ proc dualVth {slackThreshold maxFanoutEndpointCost} {
 
 # Swap all cells to HVT
 proc swap_to_hvt {} {
-    foreach_in_collection cell {get_cells}{
+    foreach_in_collection cell {get_cells} {
         set ref_name [get_attribute $cell ref_name]
         set library_name "CORE65LPHVT"
         regsub {_LL} $ref_name "_LH" new_ref_name
-        size_cell $cell "${library_name}/${new_ref_name}"
+        size_cell $cell "${library_name} / ${new_ref_name}"
     }
 }
 
@@ -28,7 +28,7 @@ proc swap_cell_to_lvt {cell} {
     set ref_name [get_attribute $cell ref_name]
     set library_name "CORE65LPHVT"
     regsub {_LH} $ref_name "_LL" new_ref_name
-    size_cell $cell "${library_name}/${new_ref_name}"
+    size_cell $cell "${library_name} / ${new_ref_name}"
 }
 
 # Check if constraints are met
@@ -37,7 +37,7 @@ proc check_constraints {slackThreshold maxFanoutEndpointCost} {
     # TODO: Marco non è sicuro della linea dopo
     set msc_slack {get_attribute [get_timing_paths]}
 
-    if {$msc_slack <0}{
+    if {$msc_slack < 0}{
         puts "Slack: $msc_slack"
         return 0
     }
