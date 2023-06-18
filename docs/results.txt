@@ -1,1 +1,2 @@
 V1: Normalized Power=0.984852814705 - CPU Time=152.462 - Optimization Cost=3.54855826902
+V2: Normalized Power=0.984852814705 - CPU Time=4.662 - Optimization Cost=0.990354577226

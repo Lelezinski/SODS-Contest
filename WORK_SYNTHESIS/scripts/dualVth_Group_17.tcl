@@ -15,6 +15,13 @@ proc swap_cell_to_lvt {cell} {
     size_cell $cell "${library_name}/${new_ref_name}"
 }
 
+proc swap_cell_to_hvt {cell} {
+    set ref_name [get_attribute $cell ref_name]
+    set library_name "CORE65LPLVT"
+    regsub {_LL} $ref_name "_LH" new_ref_name
+    size_cell $cell "${library_name}/${new_ref_name}"
+}
+
 proc check_contest_constraints {slackThreshold maxFanoutEndpointCost} {
     update_timing -full
 
@@ -61,7 +68,8 @@ proc sort_cells_by_slack {hvt_cells} {
     return $sorted_cells
 }
 
-proc dualVth {slackThreshold maxFanoutEndpointCost} {
+# V2
+proc dualVth_V2 {slackThreshold maxFanoutEndpointCost} {
     # SIZE ALL TO HVT
     swap_to_hvt
 
@@ -70,10 +78,13 @@ proc dualVth {slackThreshold maxFanoutEndpointCost} {
         set hvt_cells [get_cells -filter "lib_cell.threshold_voltage_group == HVT"]
         # SORT CELLS
         set sorted_cells [sort_cells_by_slack $hvt_cells]
-        # SIZE FIRST CELLS FROM PREVIOUS LIST TO LVT
-        set cell_name [lindex $sorted_cells 0 0]
-        # SWAP the random_cell to LVT
-        swap_cell_to_lvt [get_cells $cell_name]
+        set num_cells_to_swap [expr {int([llength $sorted_cells] / 2)}]
+
+        # Swap half of the cells to LVT
+        for {set i 0} {$i < $num_cells_to_swap} {incr i} {
+            set cell_name [lindex $sorted_cells $i 0]
+            swap_cell_to_lvt [get_cells $cell_name]
+        }
     }
 
     return 1
