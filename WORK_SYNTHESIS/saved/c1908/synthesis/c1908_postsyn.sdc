@@ -1,12 +1,11 @@
 ###################################################################
 
-# Created by write_sdc on Tue May 30 19:31:24 2023
+# Created by write_sdc on Sun Jun 18 03:03:16 2023
 
 ###################################################################
 set sdc_version 1.3
 
-set_wire_load_model -name area_12Kto18K -library                               \
-CORE65LPSVT_bc_1.30V_m40C.db:CORE65LPSVT
+set_wire_load_model -name area_12Kto18K -library CORE65LPSVT
 set_max_area 0
 set_driving_cell -lib_cell HS65_LL_BFX7 -library                               \
 CORE65LPLVT_nom_1.20V_25C.db:CORE65LPLVT [get_ports N1]
