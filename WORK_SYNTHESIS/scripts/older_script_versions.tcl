@@ -96,3 +96,144 @@ proc dualVth_V3 {slackThreshold maxFanoutEndpointCost} {
         return 0 
     }
 }
+
+# V3b
+proc dualVth_V3b {slackThreshold maxFanoutEndpointCost} {
+    # Swap all to HVT
+    set cell_number [swap_to_hvt]
+
+    # Set num_cells_to_swap
+    set alpha 10
+    set num_cells_to_swap [expr {$cell_number / $alpha}]
+
+    puts "###"
+    puts "# Total number of cells: $cell_number"
+    puts "# Swapping $num_cells_to_swap cells each cycle."
+    puts "###"
+
+    set constraint_status 1
+
+    # WHILE TIMING CONSTRAINTS ARE NOT MET
+    while {1} {
+        set hvt_cells [get_cells -filter "lib_cell.threshold_voltage_group == HVT"]
+        # SORT CELLS
+        set sorted_cells [sort_cells_by_slack $hvt_cells]
+        #set num_cells_to_swap [expr {int([llength $sorted_cells] / 2)}]
+
+        # Swap half of the cells to LVT
+        for {set i 0} {$i < $num_cells_to_swap} {incr i} {
+            set cell_name [lindex $sorted_cells $i 0]
+            swap_cell_to_lvt [get_cells $cell_name]
+        }
+
+        set constraint_status [check_contest_constraints $slackThreshold $maxFanoutEndpointCost]
+        if {$constraint_status == 0} {
+            break
+        } elseif {$constraint_status == 2} {
+            # Fanout error, reset and halve num_cells_to_swap
+            puts "# Fanout too high, resetting stage..."
+            for {set i 0} {$i < $num_cells_to_swap} {incr i} {
+                set cell_name [lindex $sorted_cells $i 0]
+                swap_cell_to_hvt [get_cells $cell_name]
+            }
+            set num_cells_to_swap [expr {int($num_cells_to_swap / 2)}]
+            puts "# Now swapping $num_cells_to_swap every cycle"
+
+            if {$num_cells_to_swap < 2} {
+                # Stuck, reset everything and change starting num_cells_to_swap 
+                puts "# Fanout too high, resetting from the beginning..."
+                set cell_number [swap_to_hvt]
+                set num_cells_to_swap [expr {$cell_number / ($alpha * 5)}]
+                puts "# Now swapping $num_cells_to_swap every cycle"
+            }
+        }
+    }
+
+    return 1
+}
+
+#V3c
+proc dualVth_V3c {slackThreshold maxFanoutEndpointCost} {
+    # Swap all to HVT
+    set cell_number [swap_to_lvt]
+
+    # Set num_cells_to_swap
+    set alpha 10
+    set max_cycles 10
+    set num_cells_to_swap [expr {$cell_number / $alpha}]
+    set cycle 0
+
+    puts "###"
+    puts "# Total number of cells: $cell_number"
+    puts "# Swapping $num_cells_to_swap cells each cycle."
+    puts "# Max number of cycles: $max_cycles."
+    puts "###"
+
+    set constraint_status 1
+
+    # WHILE TIMING CONSTRAINTS ARE NOT MET
+    while {1} {
+        incr cycle
+        puts "# Cycle $cycle"
+
+        set lvt_cells [get_cells -filter "lib_cell.threshold_voltage_group == LVT"]
+        # SORT CELLS
+        set sorted_cells [sort_cells_by_slack_by_leakage_decreasing $lvt_cells]
+        #set num_cells_to_swap [expr {int([llength $sorted_cells] / 2)}]
+
+        # Swap half of the cells to LVT
+        for {set i 0} {$i < $num_cells_to_swap} {incr i} {
+            set cell_name [lindex $sorted_cells $i 0]
+            swap_cell_to_hvt [get_cells $cell_name]
+        }
+
+        set constraint_status [check_contest_constraints $slackThreshold $maxFanoutEndpointCost]
+        if {$constraint_status == 1} {
+            # Reset
+            for {set i 0} {$i < $num_cells_to_swap} {incr i} {
+                set cell_name [lindex $sorted_cells $i 0]
+                swap_cell_to_lvt [get_cells $cell_name]
+            }
+            # Halve number of num_cells_to_swap
+            set num_cells_to_swap [expr {$num_cells_to_swap / 2}]
+            puts "# Now swapping $num_cells_to_swap cells."
+        } elseif {$constraint_status == 2} {
+            # Fanout error, reset and halve num_cells_to_swap
+            puts "# Fanout too high, going on..."
+        } elseif {$cycle > $max_cycles} {
+            puts "# Max cycles reached"
+            break
+        }
+    }
+
+    return 1
+}
+
+# paths
+# WHILE TIMING CONSTRAINTS ARE NOT MET
+while {[check_contest_constraints $slackThreshold $maxFanoutEndpointCost] > 0} {
+
+    set paths [get_timing_paths -nworst $num_paths -max_paths $num_paths -slack_lesser_than $slackThreshold]
+    foreach_in_collection path $paths {
+        set listTimingPoints [get_attribute $path points]
+        set cell_list ""
+
+        foreach_in_collection timingPoint $listTimingPoints {
+            set pin [get_attribute $timingPoint object]
+            set cell [get_attribute $pin cell]
+            lappend cell_list $cell
+        }
+
+        puts "sad"
+        puts $cell_list
+        
+        # Order the cells of the path 
+        set sorted_cells [sort_cells_by_slack_by_leakage_decreasing $cell_list]
+
+        # Change to LVT num_cells_to_swap in the path
+        for {set i 0} {$i < $num_cells_to_swap} {incr i} {
+            set cell_name [lindex $sorted_cells $i 0]
+            swap_cell_to_hvt [get_cells $cell_name]
+        }
+    }
+}

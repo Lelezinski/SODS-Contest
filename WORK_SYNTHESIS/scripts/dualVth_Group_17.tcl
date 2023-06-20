@@ -1,11 +1,27 @@
 proc swap_to_hvt {} {
+    set n_cell 0
     foreach_in_collection cell [get_cells] {
+        incr n_cell
         set ref_name [get_attribute $cell ref_name]
 
         set library_name "CORE65LPHVT"
         regsub {_LL} $ref_name "_LH" new_ref_name
         size_cell $cell "${library_name}/${new_ref_name}"
     }
+    return $n_cell
+}
+
+proc swap_to_lvt {} {
+    set n_cell 0
+    foreach_in_collection cell [get_cells] {
+        incr n_cell
+        set ref_name [get_attribute $cell ref_name]
+
+        set library_name "CORE65LPLVT"
+        regsub {_LH} $ref_name "_LL" new_ref_name
+        size_cell $cell "${library_name}/${new_ref_name}"
+    }
+    return $n_cell
 }
 
 proc swap_cell_to_lvt {cell} {
@@ -30,7 +46,7 @@ proc check_contest_constraints {slackThreshold maxFanoutEndpointCost} {
 
     if {$msc_slack < 0} {
         puts "Slack: $msc_slack"
-        return 0
+        return 1
     }
 
     # Check Fanout Endpoint Cost
@@ -46,12 +62,12 @@ proc check_contest_constraints {slackThreshold maxFanoutEndpointCost} {
             puts "FCE Violated: $cell_fanout_endpoint_cost"
             set cell_name [get_attribute $cell full_name]
             set cell_ref_name [get_attribute $cell ref_name]
-            return 0
+            return 2
         }
     }
 
     puts "Slack: $msc_slack"
-    return 1
+    return 0
 }
 
 proc sort_cells_by_slack {cells} {
@@ -103,7 +119,7 @@ proc sort_cells_by_slack_by_leakage {cells} {
 }
 
 
-# V3
+# V4
 proc dualVth {slackThreshold maxFanoutEndpointCost} {
     # Initially swap all to HVT
     swap_to_hvt
@@ -111,7 +127,7 @@ proc dualVth {slackThreshold maxFanoutEndpointCost} {
     puts "## First swap to LVT"
 
     # First swap to LVT to meet slack
-    while {[check_contest_constraints $slackThreshold $maxFanoutEndpointCost] == 0} {
+    while {[check_contest_constraints $slackThreshold $maxFanoutEndpointCost] > 0} {
         set hvt_cells [get_cells -filter "lib_cell.threshold_voltage_group == HVT"]
         # SORT CELLS
         set sorted_cells [sort_cells_by_slack_by_leakage $hvt_cells]
@@ -127,12 +143,12 @@ proc dualVth {slackThreshold maxFanoutEndpointCost} {
     puts "## Try to swap back to HVT"
 
     # While still possible, swap back to HVT to lower power consumption
-    while {[check_contest_constraints $slackThreshold $maxFanoutEndpointCost] == 1} {
+    while {[check_contest_constraints $slackThreshold $maxFanoutEndpointCost] == 0} {
         set lvt_cells [get_cells -filter "lib_cell.threshold_voltage_group == LVT"]
         # SORT CELLS
         set sorted_cells [sort_cells_by_slack_by_leakage $lvt_cells]
         set num_cells [llength $sorted_cells]
-        set num_cells_to_swap 5
+        set num_cells_to_swap [expr {int([llength $sorted_cells] / 20)}]
         set start_index [expr {$num_cells - $num_cells_to_swap}]
 
         # Swap higher half of the cells to HVT
@@ -148,13 +164,5 @@ proc dualVth {slackThreshold maxFanoutEndpointCost} {
     for {set i $start_index} {$i < $num_cells} {incr i} {
         set cell_name [lindex $sorted_cells $i 0]
         swap_cell_to_lvt [get_cells $cell_name]
-    }
-
-    if {[check_contest_constraints $slackThreshold $maxFanoutEndpointCost] == 1} {
-        return 1
-    }
-    else {
-        puts "ERROR"
-        return 0 
     }
 }
