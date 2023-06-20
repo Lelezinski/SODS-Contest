@@ -132,7 +132,7 @@ proc dualVth {slackThreshold maxFanoutEndpointCost} {
         # SORT CELLS
         set sorted_cells [sort_cells_by_slack_by_leakage $lvt_cells]
         set num_cells [llength $sorted_cells]
-        set num_cells_to_swap 2
+        set num_cells_to_swap 5
         set start_index [expr {$num_cells - $num_cells_to_swap}]
 
         # Swap higher half of the cells to HVT

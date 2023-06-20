@@ -49,9 +49,8 @@ suppress_message PWR-602
 ##
 ######################################################################
 # DEFINE CIRCUITS
-# set blockName "c432"
-set blockName "c1908"
-# set blockName "c5315"
+#set blockName "c1908"
+set blockName "c5315"
 
 # DEFINE INPUT FILES
 set dir "./saved/${blockName}/synthesis"
